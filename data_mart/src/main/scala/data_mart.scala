@@ -51,7 +51,7 @@ object data_mart {
       pivotSiteCategories,
       pivotShopCategories("uid") === pivotSiteCategories("uid"),
       "left"
-    ).drop(pivotSiteCategories("uid"))
+    ).drop(pivotSiteCategories("uid")).drop("null")
 
     writeResult(result)
 

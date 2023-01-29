@@ -1,6 +1,6 @@
 *.class
 *.log
-.idea/*
+.idea
 target
-.bsp/*
-project/*
+.bsp
+project

@@ -24,8 +24,9 @@ object data_mart {
 
     val joinedShopCategories: sql.DataFrame = clients.join(
       shopVisits,
-      "uid"
-    ).toDF("uid", "age", "gender", "category")
+      clients("uid") === shopVisits("uid"),
+      "left"
+    ).drop(shopVisits("uid"))
 
     val pivotShopCategories: sql.DataFrame = joinedShopCategories
       .groupBy("uid", "age_cat", "gender", "category")
@@ -40,16 +41,17 @@ object data_mart {
     ).drop("url", "domain")
 
     val pivotSiteCategories: sql.DataFrame = visitsWithCategories
-      .groupBy("uid")
+      .groupBy("uid", "category")
       .count()
       .groupBy("uid")
       .pivot("category")
       .sum("count")
 
-    val result = pivotShopCategories.join(
+    val result: sql.DataFrame = pivotShopCategories.join(
       pivotSiteCategories,
-      "uid"
-    )
+      pivotShopCategories("uid") === pivotSiteCategories("uid"),
+      "left"
+    ).drop(pivotSiteCategories("uid"))
 
     writeResult(result)
 

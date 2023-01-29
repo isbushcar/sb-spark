@@ -80,7 +80,7 @@ object data_mart {
     visits
       .where("event_type = 'view'")
       .drop("event_type", "item_id", "item_price", "timestamp", "_metadata")
-      .withColumn("category", normalizeCategory(col("category")))
+      .withColumn("category", normalizeShopCategory(col("category")))
   }
 
   def getSiteLogs(): sql.DataFrame = {
@@ -93,7 +93,7 @@ object data_mart {
   }
 
   def getSiteCategories(): sql.DataFrame = {
-    spark.read
+    val categories = spark.read
       .format("jdbc")
       .option("url", s"jdbc:postgresql://$pgAddress/labdata")
       .option("dbtable", "domain_cats")
@@ -101,6 +101,11 @@ object data_mart {
       .option("password", pgPass)
       .option("driver", "org.postgresql.Driver")
       .load()
+    val addPrefix = udf(
+      (category: String) =>
+        s"web_$category"
+    )
+    categories.withColumn("category", addPrefix(col("category")))
   }
 
   def convertAgeToCategory: UserDefinedFunction = udf(
@@ -117,7 +122,7 @@ object data_mart {
     else ">=55"
   )
 
-  def normalizeCategory: UserDefinedFunction = udf(
+  def normalizeShopCategory: UserDefinedFunction = udf(
     (category: String) =>
       "shop_" + category.toLowerCase().replace(" ", "_").replace("-", "_")
   )

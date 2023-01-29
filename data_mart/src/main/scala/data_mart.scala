@@ -28,9 +28,9 @@ object data_mart {
     ).toDF("uid", "age", "gender", "category")
 
     val pivotShopCategories: sql.DataFrame = joinedShopCategories
-      .groupBy("uid", "age", "gender", "category")
+      .groupBy("uid", "age_cat", "gender", "category")
       .count()
-      .groupBy("uid", "age", "gender")
+      .groupBy("uid", "age_cat", "gender")
       .pivot("category")
       .sum("count")
 
@@ -60,7 +60,10 @@ object data_mart {
       .format("org.apache.spark.sql.cassandra")
       .options(Map("table" -> "clients", "keyspace" -> "labdata"))
       .load()
-    clients.withColumn("age", convertAgeToCategory(col("age")))
+    val clientsByCategories: sql.DataFrame = clients.withColumn("age_cat", convertAgeToCategory(col("age")))
+    clientsByCategories
+      .drop("age")
+
   }
 
   def getShopVisitsLog(): sql.DataFrame = {

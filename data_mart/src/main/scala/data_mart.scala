@@ -78,7 +78,6 @@ object data_mart {
         "es.net.ssl" -> "false"))
       .load("visits")
     visits
-      .where("event_type = 'view'")
       .drop("event_type", "item_id", "item_price", "timestamp", "_metadata")
       .withColumn("category", normalizeShopCategory(col("category")))
   }

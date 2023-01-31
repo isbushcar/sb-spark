@@ -19,7 +19,7 @@ object filter {
     val outputDirPrefix: String = spark.sparkContext.getConf.get("spark.filter.output_dir_prefix")
 
     val inputDf: sql.DataFrame = spark
-      .readStream
+      .read
       .format("kafka")
       .option("kafka.bootstrap.servers", kafkaServer)
       .option("subscribe", inputTopic)

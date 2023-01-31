@@ -33,7 +33,7 @@ object filter {
       .load()
 
     inputDf.createOrReplaceTempView("inputDf")
-    val values: sql.DataFrame = spark.sql("select trim(BOTH '[] ' FROM value) from inputDf")
+    val values: sql.DataFrame = spark.sql("select trim(BOTH '[] ' FROM value) as val from inputDf")
 
     val schema: StructType = StructType(Seq(
       StructField("event_type", StringType),

@@ -14,9 +14,9 @@ object filter {
     val sc: SparkContext = spark.sparkContext
 
     val kafkaServer: String = "spark-master-1:6667"
-    val inputTopic: String = spark.sparkContext.getConf.get("topic_name")
-    val offset: String = spark.sparkContext.getConf.get("offset")
-    val outputDirPrefix: String = spark.sparkContext.getConf.get("output_dir_prefix")
+    val inputTopic: String = spark.sparkContext.getConf.get("spark.filter.topic_name")
+    val offset: String = spark.sparkContext.getConf.get("spark.filter.offset")
+    val outputDirPrefix: String = spark.sparkContext.getConf.get("spark.filter.output_dir_prefix")
 
     val inputDf: sql.DataFrame = spark
       .readStream

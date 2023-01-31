@@ -4,7 +4,7 @@ ThisBuild / scalaVersion := "2.11.12"
 
 lazy val root = (project in file("."))
   .settings(
-    name := "lab04a/filter"
+    name := "filter"
   )
 
 val sparkVersion = "2.4.7"

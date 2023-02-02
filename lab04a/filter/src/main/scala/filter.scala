@@ -8,7 +8,7 @@ object filter {
   def main(args: Array[String]): Unit = {
 
     val spark: SparkSession = SparkSession.builder()
-      .appName("andrey.berezin.lab03")
+      .appName("andrey.berezin.lab04a")
       .getOrCreate()
     spark.conf.set("spark.sql.session.timeZone", "UTC")
     val sc: SparkContext = spark.sparkContext

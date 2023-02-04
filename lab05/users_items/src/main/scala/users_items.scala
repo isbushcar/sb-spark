@@ -76,10 +76,16 @@ object users_items {
           result.select(addMissingCols(currentCols, allCols): _*)
         )
 
-      val finalResult: sql.DataFrame = updatedResult
-        .groupBy("uid")
-        .sum()
-        .na.fill(0)
+      val sumSql: String = updatedResult
+        .columns.slice(1, updatedResult.columns.length)
+        .map(x => s"coalesce(sum($x), 0) as $x")
+        .mkString(", ")
+
+      updatedResult.createOrReplaceTempView("res")
+
+      val finalResult: sql.DataFrame = spark.sql(
+        s"select uid, $sumSql from res group by uid"
+      )
 
       finalResult.show(false)
 

@@ -60,6 +60,7 @@ object users_items {
 
       val previousDate = LocalDate
         .parse(minDate, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+        .minusDays(1)
         .toString
         .replace("-", "")
 

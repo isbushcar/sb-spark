@@ -70,8 +70,8 @@ object users_items {
       val currentCols: Set[String] = result.columns.toSet
       val allCols: Set[String] = prevCols ++ currentCols
 
-      val updatedResult: sql.DataFrame = previousData
-        .select(addMissingCols(prevCols, allCols): _*)
+      val updatedResult: sql.DataFrame =
+        previousData.select(addMissingCols(prevCols, allCols): _*)
         .union(
           result.select(addMissingCols(currentCols, allCols): _*)
         )
@@ -82,6 +82,15 @@ object users_items {
         .mkString(", ")
 
       updatedResult.createOrReplaceTempView("res")
+
+      println(updatedResult.columns.mkString(", "))
+      println(updatedResult.columns.mkString(", "))
+      println(updatedResult
+        .columns.slice(1, updatedResult.columns.length)
+        .map(x => s"coalesce(sum($x), 0) as $x")
+        .mkString(", "))
+
+
 
       val finalResult: sql.DataFrame = spark.sql(
         s"select uid, $sumSql from res group by uid"

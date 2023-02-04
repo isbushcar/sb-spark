@@ -29,7 +29,7 @@ object users_items {
 
     val unitedDf: sql.DataFrame = visits
       .select(addMissingCols(visitsCols, bothDfCols):_*)
-      .union(
+      .unionByName(
         purchases.select(addMissingCols(purchasesCols, bothDfCols):_*)
       )
 
@@ -72,7 +72,7 @@ object users_items {
 
       val updatedResult: sql.DataFrame =
         previousData.select(addMissingCols(prevCols, allCols): _*)
-        .union(
+        .unionByName(
           result.select(addMissingCols(currentCols, allCols): _*)
         )
 

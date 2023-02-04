@@ -3,7 +3,7 @@ import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Column, SparkSession}
 import org.apache.spark.{SparkContext, sql}
-
+import java.io.File
 import java.time.LocalDate
 
 
@@ -117,11 +117,22 @@ object users_items {
   }
 
   private def getLastDirName: String = {
-    val fs = FileSystem.get(spark.sparkContext.hadoopConfiguration)
-    fs.listStatus(new Path(s"$outputDir"))
-      .filter(_.isDirectory)
-      .map(_.getPath.getName)
-      .sortBy(x => LocalDate.parse(x).toEpochDay)
-      .slice(-1, 1)(0)
+    if (outputDir.startsWith("hdfs://")) {
+      val fs = FileSystem.get(spark.sparkContext.hadoopConfiguration)
+      fs.listStatus(new Path(s"$outputDir"))
+        .filter(_.isDirectory)
+        .map(_.getPath.getName)
+        .sortBy(x => LocalDate.parse(x).toEpochDay)
+        .slice(-1, 1)(0)
+    }
+    else {
+      val fs = new File(outputDir)
+      fs
+        .listFiles
+        .filter(_.isDirectory)
+        .map(_.getName)
+        .sortBy(x => LocalDate.parse(x).toEpochDay)
+        .slice(-1, 1)(0)
+    }
   }
 }

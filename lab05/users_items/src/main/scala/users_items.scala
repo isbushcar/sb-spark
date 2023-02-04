@@ -59,7 +59,7 @@ object users_items {
         .first()(0).toString
 
       val previousDate = LocalDate
-        .parse(minDate, DateTimeFormatter.ofPattern("yyyyMMdd"))
+        .parse(minDate, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
         .toString
         .replace("-", "")
 

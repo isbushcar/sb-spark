@@ -1,10 +1,10 @@
-import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.sql.expressions.UserDefinedFunction
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Column, SparkSession}
 import org.apache.spark.{SparkContext, sql}
-import java.io.File
+
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 
 object users_items {
@@ -55,7 +55,15 @@ object users_items {
     }
 
     else {
-      val previousData: sql.DataFrame = getPreviousData
+      val minDate = spark.sql("select min(date) from res")
+        .first()(0).toString
+
+      val previousDate = LocalDate
+        .parse(minDate, DateTimeFormatter.ofPattern("yyyyMMdd"))
+        .toString
+        .replace("-", "")
+
+      val previousData: sql.DataFrame = getPreviousData(previousDate)
 
       val prevCols: Set[String] = previousData.columns.toSet
       val currentCols: Set[String] = result.columns.toSet
@@ -108,31 +116,10 @@ object users_items {
     }
   }
 
-  private def getPreviousData: sql.DataFrame = {
-    val lastDirName = getLastDirName
+  private def getPreviousData(dirName: String): sql.DataFrame = {
     spark
       .read
       .format("parquet")
-      .load(s"$outputDir/$lastDirName")
-  }
-
-  private def getLastDirName: String = {
-    if (outputDir.startsWith("hdfs://")) {
-      val fs = FileSystem.get(spark.sparkContext.hadoopConfiguration)
-      fs.listStatus(new Path(s"$outputDir"))
-        .filter(_.isDirectory)
-        .map(_.getPath.getName)
-        .sortBy(x => LocalDate.parse(x).toEpochDay)
-        .slice(-1, 1)(0)
-    }
-    else {
-      val fs = new File(outputDir)
-      fs
-        .listFiles
-        .filter(_.isDirectory)
-        .map(_.getName)
-        .sortBy(x => LocalDate.parse(x).toEpochDay)
-        .slice(-1, 1)(0)
-    }
+      .load(s"$outputDir/$dirName")
   }
 }

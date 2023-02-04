@@ -79,6 +79,7 @@ object users_items {
       updatedResult
         .groupBy("uid")
         .sum()
+        .na.fill(0)
         .write
         .format("parquet")
         .save(s"$outputDir/$maxDate")

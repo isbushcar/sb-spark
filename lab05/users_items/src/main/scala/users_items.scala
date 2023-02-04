@@ -76,10 +76,14 @@ object users_items {
           result.select(addMissingCols(currentCols, allCols): _*)
         )
 
-      updatedResult
+      val finalResult: sql.DataFrame = updatedResult
         .groupBy("uid")
         .sum()
         .na.fill(0)
+
+      finalResult.show(false)
+
+      finalResult
         .write
         .format("parquet")
         .save(s"$outputDir/$maxDate")

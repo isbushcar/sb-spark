@@ -90,6 +90,7 @@ object users_items {
       finalResult
         .write
         .format("parquet")
+        .mode("overwrite")
         .save(s"$outputDir/$maxDate")
     }
   }

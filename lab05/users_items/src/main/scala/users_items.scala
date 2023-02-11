@@ -21,7 +21,7 @@ object users_items {
 
   def main(args: Array[String]): Unit = {
     val visits: sql.DataFrame = getPreparedVisitsData
-    val purchases: sql.DataFrame = getPreparedPurchasesData.as("purchases")
+    val purchases: sql.DataFrame = getPreparedPurchasesData
 
     val visitsCols: Set[String] = visits.columns.toSet
     val purchasesCols: Set[String] = purchases.columns.toSet
@@ -77,26 +77,15 @@ object users_items {
         )
 
       val sumSql: String = updatedResult
-        .columns.slice(1, updatedResult.columns.length)
+        .columns.filter(x => x != "uid")
         .map(x => s"coalesce(sum($x), 0) as $x")
         .mkString(", ")
 
       updatedResult.createOrReplaceTempView("res")
 
-      println(updatedResult.columns.mkString(", "))
-      println(updatedResult.columns.mkString(", "))
-      println(updatedResult
-        .columns.slice(1, updatedResult.columns.length)
-        .map(x => s"coalesce(sum($x), 0) as $x")
-        .mkString(", "))
-
-
-
       val finalResult: sql.DataFrame = spark.sql(
         s"select uid, $sumSql from res group by uid"
       )
-
-      finalResult.show(false)
 
       finalResult
         .write
@@ -105,10 +94,11 @@ object users_items {
     }
   }
 
-  private def normalizeItemName: UserDefinedFunction = udf(
-    (category: String, prefix: String) =>
-      prefix + category.toLowerCase().replace(" ", "_").replace("-", "_")
-  )
+  private def columnsToNormalizeItemId(columns: Array[String], prefix: String): String = {
+    s"${columns.mkString(", ")}".replace(
+      "item_id",
+      s"'$prefix' || replace(replace(lower(item_id), ' ', '_'), '-', '_') as item_id")
+  }
 
   private def getPreparedVisitsData: sql.DataFrame = {
     val visits: sql.DataFrame = spark
@@ -116,8 +106,8 @@ object users_items {
       .format("json")
       .load(s"$inputDir/view")
 
-    visits
-      .withColumn("item_id", normalizeItemName(col("item_id"), lit("view_")))
+    visits.createOrReplaceTempView("visits")
+    spark.sql(s"SELECT " + columnsToNormalizeItemId(visits.columns, "view_") + " FROM visits")
   }
 
   private def getPreparedPurchasesData: sql.DataFrame = {
@@ -126,8 +116,8 @@ object users_items {
       .format("json")
       .load(s"$inputDir/buy")
 
-    purchases
-      .withColumn("item_id", normalizeItemName(col("item_id"), lit("buy_")))
+    purchases.createOrReplaceTempView("purchases")
+    spark.sql(s"SELECT " + columnsToNormalizeItemId(purchases.columns, "buy_") + " FROM purchases")
   }
 
   private def addMissingCols(existing: Set[String], allNeeded: Set[String]): List[Column] = {

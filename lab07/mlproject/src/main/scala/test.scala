@@ -1,11 +1,7 @@
-import org.apache.spark.ml.{Pipeline, PipelineModel}
-import org.apache.spark.ml.classification.LogisticRegression
-import org.apache.spark.ml.feature.{CountVectorizer, IndexToString, StringIndexer, StringIndexerModel}
+import org.apache.spark.ml.PipelineModel
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
-import org.apache.spark.{SparkContext, sql}
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions._
+import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.sql.types._
 import org.apache.spark.{SparkContext, sql}
 
@@ -60,14 +56,18 @@ object test {
       .transform(source)
       .select(col("uid"), col("gender_age_reversed").as("gender_age"))
 
-    result
+    val query: StreamingQuery = result
+      .toJSON
       .writeStream
       .format("kafka")
       .option("kafka.bootstrap.servers", kafkaServer)
       .option("topic", targetTopic)
       .option("checkpointLocation", checkpointsLocation)
-      .outputMode("complete")
+      .outputMode("update")
       .start()
+
+    query.awaitTermination()
+
   }
 
 }

@@ -24,6 +24,7 @@ object agg {
       .format("kafka")
       .option("kafka.bootstrap.servers", kafkaServer)
       .option("subscribe", inputTopic)
+      .option("failOnDataLoss", "false")
       .load()
       .selectExpr("CAST(value AS STRING) as val")
 
@@ -39,8 +40,6 @@ object agg {
     val parsedDf: sql.DataFrame = values
       .withColumn("val", from_json(col("val"), schema))
       .select("val.*")
-
-    parsedDf
       .withColumn("timestamp", date_trunc("hour", from_unixtime(col("timestamp") / 1000)))
 
     def createSink(df: sql.DataFrame)(batchFunc: (sql.DataFrame, Long) => Unit) = {
@@ -48,15 +47,16 @@ object agg {
         .writeStream
         .trigger(Trigger.ProcessingTime("5 seconds"))
         .option("checkpointLocation", checkpointsLocation)
-        .outputMode("update")
         .foreachBatch(batchFunc)
+        .start()
+        .awaitTermination()
     }
 
-    createSink(parsedDf) { (df, id) =>
-      df.cache()
+    createSink(parsedDf) { (df: sql.DataFrame, id) =>
+      df.persist()
       df.createOrReplaceTempView("parsedDf")
 
-      val filtered = spark.sql(
+      val filtered = df.sparkSession.sql(
         """SELECT
           *
           FROM parsedDf
@@ -66,7 +66,7 @@ object agg {
           )""")
       filtered.createOrReplaceTempView("filtered")
 
-      val revenue: sql.DataFrame = spark.sql(
+      val revenue: sql.DataFrame = df.sparkSession.sql(
         """
         SELECT
           timestamp,
@@ -77,7 +77,7 @@ object agg {
       """)
       revenue.createOrReplaceTempView("revenueDf")
 
-      val visitors: sql.DataFrame = spark.sql(
+      val visitors: sql.DataFrame = df.sparkSession.sql(
         """
         SELECT
           timestamp,
@@ -88,7 +88,7 @@ object agg {
       """)
       visitors.createOrReplaceTempView("visitorsDf")
 
-      val purchases: sql.DataFrame = spark.sql(
+      val purchases: sql.DataFrame = df.sparkSession.sql(
         """
         SELECT
           timestamp,
@@ -99,7 +99,7 @@ object agg {
       """)
       purchases.createOrReplaceTempView("purchasesDf")
 
-      val result: sql.DataFrame = spark.sql(
+      val result: sql.DataFrame = df.sparkSession.sql(
         """
           SELECT
             CAST(timestamp AS Long) AS start_ts,
@@ -123,9 +123,7 @@ object agg {
         .option("topic", outputTopic)
         .save()
 
-      df.unpersist
+      df.unpersist()
     }
-      .start()
-      .awaitTermination()
   }
 }

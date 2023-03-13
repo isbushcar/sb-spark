@@ -53,67 +53,32 @@ object agg {
     }
 
     createSink(parsedDf) { (df: sql.DataFrame, id) =>
-      df.persist()
-      df.createOrReplaceTempView("parsedDf")
+      df.createOrReplaceTempView("filtered")
 
-      val filtered = df.sparkSession.sql(
-        """SELECT
-          *
-          FROM parsedDf
-          WHERE timestamp > (
-              SELECT min(timestamp)
-              FROM parsedDf
-          )""")
-      filtered.createOrReplaceTempView("filtered")
-
-      val revenue: sql.DataFrame = df.sparkSession.sql(
+      val preAgg: sql.DataFrame = df.sparkSession.sql(
         """
         SELECT
           timestamp,
-          sum(item_price) AS revenue
+          CASE WHEN event_type = 'buy' THEN item_price ELSE 0 END AS revenue,
+          CASE WHEN event_type = 'buy' THEN 1 ELSE 0 END AS purchases,
+          CASE WHEN uid != 'null' THEN 1 ELSE 0 END AS visitors
         FROM filtered
-        WHERE event_type = 'buy'
-        GROUP BY timestamp
-      """)
-      revenue.createOrReplaceTempView("revenueDf")
+        """)
+      preAgg.createOrReplaceTempView("preAgg")
 
-      val visitors: sql.DataFrame = df.sparkSession.sql(
-        """
-        SELECT
-          timestamp,
-          count(*) AS visitors
-        FROM filtered
-        WHERE uid IS NOT NULL
-        GROUP BY timestamp
-      """)
-      visitors.createOrReplaceTempView("visitorsDf")
-
-      val purchases: sql.DataFrame = df.sparkSession.sql(
-        """
-        SELECT
-          timestamp,
-          count(*) AS purchases
-        FROM filtered
-        WHERE event_type = 'buy'
-        GROUP BY timestamp
-      """)
-      purchases.createOrReplaceTempView("purchasesDf")
-
-      val result: sql.DataFrame = df.sparkSession.sql(
-        """
-          SELECT
-            CAST(timestamp AS Long) AS start_ts,
-            CAST(timestamp AS Long) + 60 * 60 * 60 AS end_ts,
-            revenue,
-            visitors,
-            purchases,
-            revenue / purchases AS aov
-          FROM revenueDf
-          LEFT JOIN visitorsDf
-            USING (timestamp)
-          LEFT JOIN purchasesDf
-            USING (timestamp)
-      """)
+      val result: sql.DataFrame = preAgg
+        .groupBy(window(col("timestamp"), "1 hours"))
+        .agg(
+          sum("revenue").as("revenue"),
+          sum("purchases").as("purchases"),
+          sum("visitors").as("visitors")
+        )
+        .withColumn("aov", col("revenue") / col("purchases"))
+        .select("window.*", "revenue", "visitors", "purchases", "aov")
+        .withColumnRenamed("start", "start_ts")
+        .withColumn("start_ts", col("start_ts").cast("long"))
+        .withColumnRenamed("end", "end_ts")
+        .withColumn("end_ts", col("end_ts").cast("long"))
 
       result
         .toJSON
@@ -122,8 +87,6 @@ object agg {
         .option("kafka.bootstrap.servers", kafkaServer)
         .option("topic", outputTopic)
         .save()
-
-      df.unpersist()
     }
   }
 }
